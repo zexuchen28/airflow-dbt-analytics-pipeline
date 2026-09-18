@@ -1,0 +1,24 @@
+# Minimal single-container Airflow setup for local demo/portfolio use.
+# Not a production topology (no separate scheduler/webserver/executor) —
+# intentionally lightweight so a reviewer can `docker compose up` and see
+# the DAG in the UI within a couple of minutes.
+#
+# Usage:
+#   docker compose up
+#   open http://localhost:8080  (default airflow/airflow login, standalone mode prints
+#                                 the generated password in the container logs)
+
+services:
+  airflow-standalone:
+    image: apache/airflow:2.9.3-python3.11
+    command: bash -c "pip install --no-cache-dir dbt-core dbt-duckdb duckdb && airflow standalone"
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./dbt_project:/opt/airflow/dbt_project
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data

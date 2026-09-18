@@ -1,0 +1,41 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: customers
+      - name: products
+      - name: orders
+
+models:
+  - name: stg_customers
+    description: One row per customer, cleaned and typed from the raw vendor feed.
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: region
+        tests:
+          - accepted_values:
+              values: ['US-West', 'US-East', 'US-Central', 'EU', 'APAC']
+
+  - name: stg_products
+    description: One row per product/SKU.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+
+  - name: stg_orders
+    description: >
+      One row per order line, filtered to drop records with a missing
+      customer_id (a known upstream feed defect — see README for the
+      data-quality note this mirrors).
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests: [not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['completed', 'cancelled', 'refunded']

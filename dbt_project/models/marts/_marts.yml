@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: One row per customer (Kimball dimension).
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+
+  - name: dim_products
+    description: One row per product (Kimball dimension).
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+
+  - name: fct_orders
+    description: One row per order line (Kimball fact table, grain = order_id).
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_products')
+              field: product_id
+      - name: net_revenue
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0

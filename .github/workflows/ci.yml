@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Airflow
+        run: pip install "apache-airflow>=2.8,<3.0"
+      - name: Check DAG has no import errors
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'dags')
+          import ecommerce_analytics_dag
+          print('DAG parsed OK:', ecommerce_analytics_dag.dag.dag_id)
+          "
+
+  dbt-build-and-test:
+    runs-on: ubuntu-latest
+    needs: validate-dag
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install dbt-core dbt-duckdb duckdb
+      - name: Generate mock raw data
+        run: python scripts/generate_mock_data.py
+      - name: Load raw data into DuckDB
+        run: python scripts/load_raw_to_duckdb.py
+      - name: dbt deps
+        working-directory: dbt_project
+        run: dbt deps
+      - name: dbt run
+        working-directory: dbt_project
+        run: dbt run --target ci
+      - name: dbt test
+        working-directory: dbt_project
+        run: dbt test --target ci
