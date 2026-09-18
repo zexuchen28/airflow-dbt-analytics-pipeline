@@ -41,10 +41,10 @@ jobs:
         run: python scripts/load_raw_to_duckdb.py
       - name: dbt deps
         working-directory: dbt_project
-        run: dbt deps
+        run: dbt deps --profiles-dir .
       - name: dbt run
         working-directory: dbt_project
-        run: dbt run --target ci
+        run: dbt run --target ci --profiles-dir .
       - name: dbt test
         working-directory: dbt_project
-        run: dbt test --target ci
+        run: dbt test --target ci --profiles-dir .
