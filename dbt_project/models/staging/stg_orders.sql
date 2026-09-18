@@ -5,7 +5,7 @@ with source as (
 cleaned as (
     select
         order_id::int as order_id,
-        nullif(customer_id, '')::int as customer_id,
+        try_cast(customer_id as int) as customer_id,
         product_id::int as product_id,
         cast(order_ts as timestamp) as order_ts,
         quantity::int as quantity,
