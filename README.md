@@ -79,6 +79,52 @@ docker compose up
 # the container logs on first boot. Unpause and trigger `ecommerce_analytics_pipeline`.
 ```
 
+## Semantic layer (dbt Semantic Layer / MetricFlow)
+
+Revenue, order counts, and AOV are defined **once**, semantically, in
+`dbt_project/models/marts/_semantic_models.yml` and `_metrics.yml` — on top
+of `fct_orders` — instead of every analyst (or every ad-hoc query) re-deriving
+`sum(case when status = 'completed' ...)` from scratch. Metrics defined:
+`total_net_revenue`, `total_gross_revenue`, `total_orders`, `total_units_sold`,
+`average_order_value`.
+
+Query them locally with the MetricFlow CLI:
+
+```bash
+pip install "dbt-metricflow[duckdb]"
+cd dbt_project
+mf query --metrics total_net_revenue,total_orders --group-by metric_time__day --profiles-dir .
+```
+
+CI validates these YAML files parse correctly on every push (`dbt parse`,
+in the workflow below) — that catches most syntax errors, though it doesn't
+execute an `mf query`, since MetricFlow's CLI setup is a bit heavier for a
+CI box than it's worth for this project's size.
+
+## Text-to-SQL evaluation (`scripts/text_to_sql_eval.py`)
+
+Every model and column in `models/marts/_marts.yml` has a written
+description — those descriptions are the *only* schema context this script
+gives Claude before asking it to translate 8 business questions
+("What is the total net revenue?", "Which product category generated the
+most net revenue?", etc.) into SQL. Each generated query is run against the
+DuckDB warehouse and compared to a hand-written reference query; the script
+reports an accuracy score and writes a full breakdown to
+`text_to_sql_eval_results.md`.
+
+```bash
+pip install anthropic pandas pyyaml
+export ANTHROPIC_API_KEY=sk-...
+python scripts/text_to_sql_eval.py
+```
+
+This is intentionally **not** wired into CI — it costs real API credits on
+every run, so it's meant to be run on demand, not on every push. It's really
+a documentation smoke test as much as a text-to-SQL demo: if the model gets
+a question wrong, the fix is usually to make a column description more
+precise, not to change the prompt.
+
+
 ## What I'd extend next
 
 - Swap the DuckDB warehouse for Snowflake (profile is already parameterized —
@@ -87,16 +133,25 @@ docker compose up
 - Replace the single-container Airflow setup with the standard
   scheduler/webserver/triggerer topology for a closer-to-production demo
 - Add a Slack webhook to `alert_on_failure` instead of the simulated print
+- - Add derived/filtered metrics (e.g. `completed_order_rate`) to the semantic
+  layer once the base `simple`/`ratio` metrics are stable
+- Expand the text-to-SQL eval set and track accuracy over time as models change
 
 ## Repo structure
 
 ```
-dags/                          Airflow DAG definition
+dags/                              Airflow DAG definition
 dbt_project/
-  models/staging/              Cleaned, typed views over raw sources
-  models/marts/                Kimball star schema (dim_*, fct_*)
-  tests/                       Custom singular test
-scripts/                       Mock data generation + warehouse load
-.github/workflows/ci.yml       DAG validation + dbt run/test on every push
-docker-compose.yml             One-command local Airflow environment
+  models/staging/                  Cleaned, typed views over raw sources
+  models/marts/                    Kimball star schema (dim_*, fct_*)
+    _marts.yml                     Model/column descriptions + tests
+    _semantic_models.yml           dbt Semantic Layer: entities/dimensions/measures
+    _metrics.yml                   Metric definitions (total_net_revenue, AOV, etc.)
+  tests/                           Custom singular test
+scripts/
+  generate_mock_data.py            Mock raw data generation
+  load_raw_to_duckdb.py            Loads raw CSVs into the warehouse
+  text_to_sql_eval.py               Claude text-to-SQL accuracy eval
+.github/workflows/ci.yml           DAG validation + dbt run/test/parse on every push
+docker-compose.yml                 One-command local Airflow environment
 ```
