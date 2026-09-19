@@ -48,3 +48,6 @@ jobs:
       - name: dbt test
         working-directory: dbt_project
         run: dbt test --target ci --profiles-dir .
+      - name: Validate semantic models & metrics parse
+        working-directory: dbt_project
+        run: dbt parse --profiles-dir .
