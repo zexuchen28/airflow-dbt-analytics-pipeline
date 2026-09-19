@@ -2,35 +2,75 @@ version: 2
 
 models:
   - name: dim_customers
-    description: One row per customer (Kimball dimension).
+    description: One row per customer (Kimball dimension). Used to join in region/membership/tenure attributes on fct_orders.
     columns:
       - name: customer_id
+        description: Primary key. Unique identifier for a customer.
         tests: [unique, not_null]
+      - name: signup_date
+        description: The date the customer created their account.
+      - name: region
+        description: The customer's home region.
+      - name: is_member
+        description: Boolean flag — true if the customer is enrolled in the paid membership/loyalty program.
+      - name: customer_tenure_days
+        description: Number of days between signup_date and the current date, computed at model build time.
 
   - name: dim_products
     description: One row per product (Kimball dimension).
     columns:
       - name: product_id
+        description: Primary key. Unique identifier for a product.
         tests: [unique, not_null]
+      - name: category
+        description: The product's merchandising category.
+      - name: unit_price
+        description: The list price of one unit of the product, in USD.
 
   - name: fct_orders
-    description: One row per order line (Kimball fact table, grain = order_id).
+    description: >
+      One row per order line (Kimball fact table, grain = order_id).
+      Joins stg_orders to dim_products to compute revenue. This is the
+      primary table analysts and BI tools query for revenue/order reporting.
     columns:
       - name: order_id
+        description: Primary key. Unique identifier for an order line.
         tests: [unique, not_null]
       - name: customer_id
+        description: Foreign key to dim_customers.customer_id.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_customers')
-              field: customer_id
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
       - name: product_id
+        description: Foreign key to dim_products.product_id.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_products')
-              field: product_id
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: order_ts
+        description: Timestamp the order was placed, in UTC.
+      - name: order_date
+        description: order_ts truncated to the day, used as the grain for daily reporting and as the semantic layer's aggregation time dimension.
+      - name: quantity
+        description: Number of units of the product purchased in this order line.
+      - name: device_type
+        description: The device type the order was placed from (desktop, mobile, tablet, or ctv).
+      - name: status
+        description: The current status of the order line (completed, cancelled, or refunded).
+      - name: category
+        description: The ordered product's merchandising category, carried over from dim_products.
+      - name: unit_price
+        description: The ordered product's list price at query time, carried over from dim_products.
+      - name: gross_revenue
+        description: quantity * unit_price, regardless of order status.
       - name: net_revenue
+        description: gross_revenue if the order status is 'completed', otherwise 0. The revenue figure used in all business reporting.
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
