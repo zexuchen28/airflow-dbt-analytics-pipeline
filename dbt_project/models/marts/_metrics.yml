@@ -39,5 +39,5 @@ metrics:
     description: Net revenue per order line — the ratio a business review would call AOV.
     type: ratio
     type_params:
-      numerator: net_revenue
-      denominator: order_count
+      numerator: total_net_revenue
+      denominator: total_orders
