@@ -74,3 +74,13 @@ models:
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
+      - name: metricflow_time_spine
+        description: >
+          Generic day-granularity date spine required by the dbt Semantic
+          Layer / MetricFlow for time-based metric aggregation. Not business
+          data — see the model's own comments for details.
+        time_spine:
+          standard_granularity_column: date_day
+        columns:
+          - name: date_day
+            granularity: day
