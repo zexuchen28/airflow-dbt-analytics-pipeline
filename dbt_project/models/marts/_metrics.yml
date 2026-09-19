@@ -1,0 +1,43 @@
+version: 2
+
+# Core business metrics, built on top of the `orders` semantic model in
+# _semantic_models.yml. Kept deliberately simple (no filtered/derived
+# metrics) to minimize exposure to MetricFlow syntax drift across dbt
+# versions — see README for how to query these with the MetricFlow CLI.
+
+metrics:
+  - name: total_net_revenue
+    label: Total Net Revenue
+    description: Total revenue from completed orders. The headline revenue metric.
+    type: simple
+    type_params:
+      measure: net_revenue
+
+  - name: total_gross_revenue
+    label: Total Gross Revenue
+    description: Total revenue across all orders, including cancelled/refunded.
+    type: simple
+    type_params:
+      measure: gross_revenue
+
+  - name: total_orders
+    label: Total Orders
+    description: Count of order lines, regardless of status.
+    type: simple
+    type_params:
+      measure: order_count
+
+  - name: total_units_sold
+    label: Total Units Sold
+    description: Sum of quantity across all order lines.
+    type: simple
+    type_params:
+      measure: quantity
+
+  - name: average_order_value
+    label: Average Order Value
+    description: Net revenue per order line — the ratio a business review would call AOV.
+    type: ratio
+    type_params:
+      numerator: net_revenue
+      denominator: order_count
