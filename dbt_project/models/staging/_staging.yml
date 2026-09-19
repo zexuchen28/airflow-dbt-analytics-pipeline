@@ -3,27 +3,43 @@ version: 2
 sources:
   - name: raw
     schema: raw
+    description: Raw landing zone for the daily upstream vendor extract, loaded as-is by `scripts/load_raw_to_duckdb.py` before any cleaning.
     tables:
       - name: customers
+        description: Raw customer records as they arrive from the upstream feed, one row per customer.
       - name: products
+        description: Raw product/SKU catalog as they arrive from the upstream feed, one row per product.
       - name: orders
+        description: Raw order line records as they arrive from the upstream feed. Known to occasionally contain a missing customer_id due to an upstream feed defect.
 
 models:
   - name: stg_customers
-    description: One row per customer, cleaned and typed from the raw vendor feed.
+    description: One row per customer, cleaned and typed from the raw vendor feed. No rows are dropped at this layer.
     columns:
       - name: customer_id
+        description: Primary key. Unique identifier for a customer.
         tests: [unique, not_null]
+      - name: signup_date
+        description: The date the customer created their account.
       - name: region
+        description: The customer's home region, one of five fixed values used for regional reporting.
         tests:
           - accepted_values:
-              values: ['US-West', 'US-East', 'US-Central', 'EU', 'APAC']
+              arguments:
+                values: ['US-West', 'US-East', 'US-Central', 'EU', 'APAC']
+      - name: is_member
+        description: Boolean flag — true if the customer is enrolled in the paid membership/loyalty program.
 
   - name: stg_products
-    description: One row per product/SKU.
+    description: One row per product/SKU, cleaned and typed from the raw vendor feed.
     columns:
       - name: product_id
+        description: Primary key. Unique identifier for a product.
         tests: [unique, not_null]
+      - name: category
+        description: The product's merchandising category (e.g. electronics, apparel).
+      - name: unit_price
+        description: The list price of one unit of the product, in USD.
 
   - name: stg_orders
     description: >
@@ -32,10 +48,22 @@ models:
       data-quality note this mirrors).
     columns:
       - name: order_id
+        description: Primary key. Unique identifier for an order line.
         tests: [unique, not_null]
       - name: customer_id
+        description: Foreign key to stg_customers.customer_id. Rows with a missing value are dropped at this layer rather than passed downstream.
         tests: [not_null]
+      - name: product_id
+        description: Foreign key to stg_products.product_id.
+      - name: order_ts
+        description: Timestamp the order was placed, in UTC.
+      - name: quantity
+        description: Number of units of the product purchased in this order line.
+      - name: device_type
+        description: The device type the order was placed from (desktop, mobile, tablet, or ctv).
       - name: status
+        description: The current status of the order line.
         tests:
           - accepted_values:
-              values: ['completed', 'cancelled', 'refunded']
+              arguments:
+                values: ['completed', 'cancelled', 'refunded']
