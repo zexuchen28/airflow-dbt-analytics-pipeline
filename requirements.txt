@@ -2,3 +2,6 @@ dbt-core>=1.7,<2.0
 dbt-duckdb>=1.7,<2.0
 duckdb>=0.10
 apache-airflow>=2.8,<3.0
+anthropic>=0.40
+pandas>=2.0
+pyyaml>=6.0
