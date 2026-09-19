@@ -1,0 +1,57 @@
+version: 2
+
+# dbt Semantic Layer / MetricFlow definitions.
+#
+# This describes fct_orders once, semantically, so that "revenue", "order
+# count", etc. have a single governed definition instead of every analyst
+# (or every LLM prompt) re-deriving them from scratch. See metrics.yml for
+# the metrics built on top of this semantic model, and README.md for how
+# to query it locally with the MetricFlow CLI.
+
+semantic_models:
+  - name: orders
+    description: One row per order line. The single semantic model backing all order/revenue metrics.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
+
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+      - name: product
+        type: foreign
+        expr: product_id
+
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: device_type
+        type: categorical
+      - name: status
+        type: categorical
+      - name: category
+        type: categorical
+
+    measures:
+      - name: order_count
+        description: Count of order lines.
+        agg: count
+        expr: order_id
+      - name: gross_revenue
+        description: Sum of gross_revenue (quantity * unit_price), regardless of order status.
+        agg: sum
+        expr: gross_revenue
+      - name: net_revenue
+        description: Sum of net_revenue (gross_revenue for completed orders only). The governed revenue figure.
+        agg: sum
+        expr: net_revenue
+      - name: quantity
+        description: Sum of units ordered.
+        agg: sum
+        expr: quantity
